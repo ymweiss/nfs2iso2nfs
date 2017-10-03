@@ -23,6 +23,8 @@ namespace nfs2iso2nfs
         public static bool map_shoulder_to_trigger = false;
         public static bool homebrew = false;
         public static bool passthrough = false;
+        public static bool instantcc = false;
+        public static bool nocc = false;
         public static string keyFile = "..\\code\\htk.bin";
         public static string isoFile = "game.iso";
         public static string wiiKeyFile = "wii_common_key.bin";
@@ -132,9 +134,15 @@ namespace nfs2iso2nfs
                     case "-passthrough":
                         passthrough = true;
                         break;
+                    case "-instantcc":
+                        instantcc = true;
+                        break;
+                    case "-nocc":
+                        nocc = true;
+                        break;
 
                     case "-help":
-                        Console.WriteLine("+++++ NFS2ISO2NFS v0.5.4 +++++");
+                        Console.WriteLine("+++++ NFS2ISO2NFS v0.5.5 +++++");
                         Console.WriteLine();
                         Console.WriteLine("-dec            Decrypt .nfs files to an .iso file.");
                         Console.WriteLine("-enc            Encrypt an .iso file to .nfs file(s)");
@@ -150,6 +158,8 @@ namespace nfs2iso2nfs
                         Console.WriteLine("-vertical       Remap Wii Remote d-pad for vertical usage (implies -wiimote)");
                         Console.WriteLine("-homebrew       Various patches to enable proper homebrew functionality");
                         Console.WriteLine("-passthrough    Allow homebrew to keep using normal wiimotes with gamepad enabled");
+                        Console.WriteLine("-instantcc      Report emulated Classic Controller at the very first check");
+                        Console.WriteLine("-nocc           Report that no Classic Controller is connected");
                         Console.WriteLine("-help           Print this text.");
                         return -1;
                     default:
@@ -1247,6 +1257,66 @@ namespace nfs2iso2nfs
                     Console.WriteLine("Wiimote Passthrough patching: Nothing to patch.");
                 else
                     Console.WriteLine("Wiimote Passthrough patching finished... (Patches applied: {0})", patchCount);
+
+                Console.WriteLine();
+            }
+
+            //for titles that dont immediately detect CC
+            if (instantcc)
+            {
+                Array.Clear(buffer_8, 0, 8);
+                int patchCount = 0;
+                byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
+                byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0x46, 0xC0 };
+
+                for (int offset = 0; offset < input_ios.Length - 8; offset++)
+                {
+                    input_ios.Position = offset;                                              // set position to advance byte by byte
+                    input_ios.Read(buffer_8, 0, 8);                                           // because we read 8 bytes at once
+
+                    if (ByteArrayCompare(buffer_8, pattern))                                  // see if it matches
+                    {
+                        input_ios.Seek(offset, SeekOrigin.Begin);                             // seek
+                        input_ios.Write(patch, 0, 8);
+
+                        patchCount++;
+                    }
+                }
+ 
+               if (patchCount == 0)
+                    Console.WriteLine("Instant Classic Controller report patching: Nothing to patch.");
+                else
+                    Console.WriteLine("Instant Classic Controller report patched... (Patches applied: {0})", patchCount);
+
+                Console.WriteLine();
+            }
+
+            //for titles that dont want CC connected
+            if (nocc)
+            {
+                Array.Clear(buffer_8, 0, 8);
+                int patchCount = 0;
+                byte[] pattern = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xD1, 0xB7 };
+                byte[] patch = { 0x78, 0x93, 0x21, 0x10, 0x2B, 0x02, 0xE0, 0xB7 };
+
+                for (int offset = 0; offset < input_ios.Length - 8; offset++)
+                {
+                    input_ios.Position = offset;                                              // set position to advance byte by byte
+                    input_ios.Read(buffer_8, 0, 8);                                           // because we read 8 bytes at once
+
+                    if (ByteArrayCompare(buffer_8, pattern))                                  // see if it matches
+                    {
+                        input_ios.Seek(offset, SeekOrigin.Begin);                             // seek
+                        input_ios.Write(patch, 0, 8);
+
+                        patchCount++;
+                    }
+                }
+ 
+               if (patchCount == 0)
+                    Console.WriteLine("No Classic Controller report patching: Nothing to patch.");
+                else
+                    Console.WriteLine("No Classic Controller report patched... (Patches applied: {0})", patchCount);
 
                 Console.WriteLine();
             }

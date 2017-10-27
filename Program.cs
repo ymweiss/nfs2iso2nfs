@@ -123,10 +123,10 @@ namespace nfs2iso2nfs
                         map_shoulder_to_trigger = true;
                         break;
                     case "-wiimote":
-                        horiz_wiimote = true;
-                        break;
-                    case "-vertical":
                         vert_wiimote = true;
+                        break;
+                    case "-horizontal":
+                        horiz_wiimote = true;
                         break;
                     case "-homebrew":
                         homebrew = true;
@@ -142,7 +142,7 @@ namespace nfs2iso2nfs
                         break;
 
                     case "-help":
-                        Console.WriteLine("+++++ NFS2ISO2NFS v0.5.5 +++++");
+                        Console.WriteLine("+++++ NFS2ISO2NFS v0.5.6 +++++");
                         Console.WriteLine();
                         Console.WriteLine("-dec            Decrypt .nfs files to an .iso file.");
                         Console.WriteLine("-enc            Encrypt an .iso file to .nfs file(s)");
@@ -155,7 +155,7 @@ namespace nfs2iso2nfs
                         Console.WriteLine("-legit          Don't patch fw.img to allow fakesigned content");
                         Console.WriteLine("-lrpatch        Map emulated Classic Controller's L & R to Gamepad's ZL & ZR");
                         Console.WriteLine("-wiimote        Emulate a Wii Remote instead of the Classic Controller");
-                        Console.WriteLine("-vertical       Remap Wii Remote d-pad for vertical usage (implies -wiimote)");
+                        Console.WriteLine("-horizontal     Remap Wii Remote d-pad for horizontal usage (implies -wiimote)");
                         Console.WriteLine("-homebrew       Various patches to enable proper homebrew functionality");
                         Console.WriteLine("-passthrough    Allow homebrew to keep using normal wiimotes with gamepad enabled");
                         Console.WriteLine("-instantcc      Report emulated Classic Controller at the very first check");
@@ -929,11 +929,14 @@ namespace nfs2iso2nfs
                 byte[] pattern2 = { 0x1C, 0x05, 0x40, 0x35 };
                 byte[] patch2 = { 0x25, 0x40, 0x40, 0x05 };
 
-                byte[] pattern3 = { 0x46, 0x53, 0x42, 0x18 };
-                byte[] patch3 = { 0x23, 0x10, 0x40, 0x03 };
+                byte[] pattern3 = { 0x23, 0x7F, 0x1C, 0x02 };
+                byte[] patch3 = { 0x46, 0xB1, 0x23, 0x20, 0x40, 0x03 };
 
-                byte[] pattern4 = { 0x1C, 0x05, 0x80, 0x22 };
-                byte[] patch4 = { 0x25, 0x40, 0x80, 0x22, 0x40, 0x05 };
+                byte[] pattern4 = { 0x46, 0x53, 0x42, 0x18 };
+                byte[] patch4 = { 0x23, 0x10, 0x40, 0x03 };
+
+                byte[] pattern5 = { 0x1C, 0x05, 0x80, 0x22 };
+                byte[] patch5 = { 0x25, 0x40, 0x80, 0x22, 0x40, 0x05 };
 
                 for (int offset = 0; offset < input_ios.Length - 4; offset++)
                 {
@@ -959,7 +962,7 @@ namespace nfs2iso2nfs
                     if (ByteArrayCompare(buffer_4, pattern3))                                // see if it matches
                     {
                         input_ios.Seek(offset, SeekOrigin.Begin);                            // seek
-                        input_ios.Write(patch3, 0, 4);                                       // and then patch
+                        input_ios.Write(patch3, 0, 6);                                       // and then patch
 
                         patchCount++;
                     }
@@ -967,7 +970,15 @@ namespace nfs2iso2nfs
                     if (ByteArrayCompare(buffer_4, pattern4))                                // see if it matches
                     {
                         input_ios.Seek(offset, SeekOrigin.Begin);                            // seek
-                        input_ios.Write(patch4, 0, 6);                                       // and then patch
+                        input_ios.Write(patch4, 0, 4);                                       // and then patch
+
+                        patchCount++;
+                    }
+
+                    if (ByteArrayCompare(buffer_4, pattern5))                                // see if it matches
+                    {
+                        input_ios.Seek(offset, SeekOrigin.Begin);                            // seek
+                        input_ios.Write(patch5, 0, 6);                                       // and then patch
 
                         patchCount++;
                     }
@@ -1015,7 +1026,7 @@ namespace nfs2iso2nfs
 
 
             //enable horizontal wii remote emulation (remap dpad and ab12)
-            if (vert_wiimote)
+            if (horiz_wiimote)
             {
                 Array.Clear(buffer_8, 0, 8);
                 int patchCount = 0;
@@ -1065,9 +1076,9 @@ namespace nfs2iso2nfs
                 }
 
                 if (patchCount == 0)
-                    Console.WriteLine("Vertical Wii Remote patching: Nothing to patch.");
+                    Console.WriteLine("Horizontal Wii Remote patching: Nothing to patch.");
                 else
-                    Console.WriteLine("Vertical Wii Remote emulation enabled... (Patches applied: {0})", patchCount);
+                    Console.WriteLine("Horizontal Wii Remote emulation enabled... (Patches applied: {0})", patchCount);
 
                 Console.WriteLine();
             }

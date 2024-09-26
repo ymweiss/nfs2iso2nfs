@@ -221,7 +221,7 @@ namespace nfs2iso2nfs
                         }
                         continue;
                     case "-help":
-                        Console.WriteLine("+++++ NFS2ISO2NFS v0.5.6 +++++");
+                        Console.WriteLine("+++++ NFS2ISO2NFS v0.6.0 +++++");
                         Console.WriteLine();
                         Console.WriteLine("-dec            Decrypt .nfs files to an .iso file.");
                         Console.WriteLine("-enc            Encrypt an .iso file to .nfs file(s)");

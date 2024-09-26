@@ -25,18 +25,27 @@ namespace nfs2iso2nfs
         public static bool passthrough = false;
         public static bool instantcc = false;
         public static bool nocc = false;
+        public static bool nintendont = false;
+        public static bool boot4by3 = false;
+        public static bool patch = false;
+        public static byte[] titleID = {0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02};
+        public static bool bootTitle = false;
         public static string keyFile = "..\\code\\htk.bin";
         public static string isoFile = "game.iso";
         public static string wiiKeyFile = "wii_common_key.bin";
         public static string nfsDir = "";
-        public static string fw_file = "..\\code\\fw.img";
-
+        public static string fw_file = "fw.img";
 
         static void Main(string[] args)
         {
             Console.WriteLine();
             if (checkArgs(args) == -1)
                 return;
+            if (patch)
+            {
+                DoThePatching(fw_file);
+                return;
+            }
             byte[] key = checkKeyFiles();
             if (key == null)
                 return;
@@ -70,6 +79,7 @@ namespace nfs2iso2nfs
                     File.Delete("hif.nfs");
             }
         }
+        }
 
 
         public static int checkArgs(string[] args)
@@ -77,41 +87,8 @@ namespace nfs2iso2nfs
             for (int i = 0; i < args.Length; i++)
                 switch (args[i])
                 {
-                    case "-dec":
-                        dec = true;
-                        break;
-                    case "-enc":
-                        enc = true;
-                        break;
-                    case "-keep":
-                        keepFiles = true;
-                        break;
                     case "-legit":
                         keepLegit = true;
-                        break;
-                    case "-key":
-                        if (i == args.Length)
-                            return -1;
-                        keyFile = args[i + 1];
-                        i++;
-                        break;
-                    case "-wiikey":
-                        if (i == args.Length)
-                            return -1;
-                        wiiKeyFile = args[i + 1];
-                        i++;
-                        break;
-                    case "-iso":
-                        if (i == args.Length)
-                            return -1;
-                        isoFile = args[i + 1];
-                        i++;
-                        break;
-                    case "-nfs":
-                        if (i == args.Length)
-                            return -1;
-                        nfsDir = args[i + 1];
-                        i++;
                         break;
                     case "-fwimg":
                         if (i == args.Length)
@@ -140,7 +117,109 @@ namespace nfs2iso2nfs
                     case "-nocc":
                         nocc = true;
                         break;
-
+                    case "-nintendont":
+                        nintendont = true;
+                        break;
+                    case "-boot4by3":
+                        boot4by3 = true;
+                        break;
+                    case "-patch":
+                        patch = true;
+                        break;
+                    case "-titleID":
+                        bootTitle = true;
+                        //the next argument contains the ID
+                        i++;
+                        if (args.Length == i)
+                        {
+                            return -1;
+                        }
+                        int count = 0;
+                        byte term = 0;
+                        foreach (char c in args[i])
+                        {
+                            if (count == 16)
+                            {
+                                Console.WriteLine("Error: The provided titleID does not contain 16 hexadecimal characters.");
+                                return -1;
+                            }
+                            byte num = 0;
+                            switch (c)
+                            {
+                                case '0':
+                                    break;
+                                case '1':
+                                    num = 1;
+                                    break;
+                                case '2':
+                                    num = 2;
+                                    break;
+                                case '3':
+                                    num = 3;
+                                    break;
+                                case '4':
+                                    num = 4;
+                                    break;
+                                case '5':
+                                    num = 5;
+                                    break;
+                                case '6':
+                                    num = 6;
+                                    break;
+                                case '7':
+                                    num = 7;
+                                    break;
+                                case '8':
+                                    num = 8;
+                                    break;
+                                case '9':
+                                    num = 9;
+                                    break;
+                                case 'a':
+                                case 'A':
+                                    num = 0xa;
+                                    break;
+                                case 'b':
+                                case 'B':
+                                    num = 0xb;
+                                    break;
+                                case 'c':
+                                case 'C':
+                                    num = 0xc;
+                                    break;
+                                case 'd':
+                                case 'D':
+                                    num = 0xd;
+                                    break;
+                                case 'e':
+                                case 'E':
+                                    num = 0xe;
+                                    break;
+                                case 'f':
+                                case 'F':
+                                    num = 0xf;
+                                    break;
+                                default:
+                                    Console.WriteLine("Error: THe provided titleID does not contain 16 hexadecimal characters.");
+                                    return -1;
+                            }
+                            if (count%2 == 0)
+                            {
+                                term += (byte)(num*16);
+                            }
+                            else
+                            {
+                                term += num;
+                                titleID[(count-1)/2] = term;
+                            }
+                            count++;
+                        }
+                        if (count < 16)
+                        {
+                            Console.WriteLine("Error: The provided titleID is too short.");
+                            return -1;
+                        }
+                        continue;
                     case "-help":
                         Console.WriteLine("+++++ NFS2ISO2NFS v0.5.6 +++++");
                         Console.WriteLine();
@@ -157,6 +236,9 @@ namespace nfs2iso2nfs
                         Console.WriteLine("-wiimote        Emulate a Wii Remote instead of the Classic Controller");
                         Console.WriteLine("-horizontal     Remap Wii Remote d-pad for horizontal usage (implies -wiimote)");
                         Console.WriteLine("-homebrew       Various patches to enable proper homebrew functionality");
+                        Console.WriteLine("-nintendont     Apply Nintendont specific patches. Implies -homebrew");
+                        Console.WriteLine("-titleID        specify installed vWii title to boot after this argument in hex. Implies -homebrew");
+                        Console.WriteLine("-boot4by3       specify if the booted title should use 4:3 aspect ratio.");
                         Console.WriteLine("-passthrough    Allow homebrew to keep using normal wiimotes with gamepad enabled");
                         Console.WriteLine("-instantcc      Report emulated Classic Controller at the very first check");
                         Console.WriteLine("-nocc           Report that no Classic Controller is connected");
@@ -184,9 +266,22 @@ namespace nfs2iso2nfs
                 Console.WriteLine("ERROR: Please don't mix patches for Classic Controller and  Wii Remote.");
                 return -1;
             }
-
-
-            if (dec || ((!dec && !enc) && File.Exists(nfsDir + "\\hif_000000.nfs")))
+            if (nintendont && bootTitle)
+            {
+                Console.WriteLine("ERROR: Please don't mix nintendont patches with specifying a titleID to boot.");
+                return -1;
+            }
+            if (patch)
+            {
+                if (dec || enc)
+                {
+                    Console.WriteLine("Error: Can not use multiple of .IMGPATCHER, nfs2iso, iso2nfs");
+                    return -1;
+                }
+                Console.WriteLine("++ FW.IMGPATCHER ++");
+                Console.WriteLine();
+            }
+            else if (dec || ((!dec && !enc) && File.Exists(nfsDir + "\\hif_000000.nfs")))
             {
                 Console.WriteLine("+++++ NFS2ISO +++++");
                 Console.WriteLine();
@@ -1083,9 +1178,26 @@ namespace nfs2iso2nfs
                 Console.WriteLine();
             }
 
-
+            //boot in 4:3
+            if (boot4by3)
+            {
+                Console.WriteLine("Writing 4:3 config...");
+                Array.Clear(buffer_4, 0, 4);
+                byte[] pattern = {0x42, 0x9A, 0xD1, 0x03};
+                byte[] ratio = {0x01};
+                for (int offset = 0; offset < input_ios.Length - 4; offset++)
+                {
+                    input_ios.Position = offset;
+                    input_ios.Read(buffer_4, 0, 4);
+                    if (ByteArrayCompare(buffer_4, pattern))
+                    {
+                        input_ios.Seek(offset + 3, SeekOrigin.Begin);
+                        input_ios.Write(ratio,0,1); 
+                    } 
+                }
+            }
             // enable proper input support in homebrew
-            if (homebrew)
+            if (homebrew || nintendont || bootTitle)
             {
                 Console.WriteLine("Homebrew-related patches:");
                 Array.Clear(buffer_4, 0, 4);
@@ -1130,66 +1242,97 @@ namespace nfs2iso2nfs
                         patchCount++;
                     }
                 }
-
-                // nintendont 1
-                byte[] pattern_nintendont_1 = { 0xB0, 0xBA, 0x1C, 0x0F };
-                byte[] patch_nintendont_1 = { 0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0 };
-                for (int offset = 0; offset < input_ios.Length - 4; offset++)
+                if (nintendont)
                 {
-                    input_ios.Position = offset;                                              // set position to advance byte by byte
-                    input_ios.Read(buffer_4, 0, 4);                                           // because we read 4 bytes at once
-
-                    if (ByteArrayCompare(buffer_4, pattern_nintendont_1))                     // if it matches
+                    // nintendont 1
+                    byte[] pattern_nintendont_1 = { 0xB0, 0xBA, 0x1C, 0x0F };
+                    byte[] patch_nintendont_1 = { 0xE5, 0x9F, 0x10, 0x04, 0xE5, 0x91, 0x00, 0x00, 0xE1, 0x2F, 0xFF, 0x10, 0x12, 0xFF, 0xFF, 0xE0 };
+                    for (int offset = 0; offset < input_ios.Length - 4; offset++)
                     {
-                        Console.WriteLine("* Nintendont patch 1...");
-                        input_ios.Seek(offset - 12, SeekOrigin.Begin);                        // seek to offset
-                        input_ios.Write(patch_nintendont_1, 0, 16);                           // and then patch
+                        input_ios.Position = offset;                                              // set position to advance byte by byte
+                        input_ios.Read(buffer_4, 0, 4);                                           // because we read 4 bytes at once
 
-                        patchCount++;
-                    }
-                }
-
-                //nintendont 2
-                byte[] pattern_nintendont_2 = { 0x68, 0x4B, 0x2B, 0x06 };
-                byte[] patch_nintendont_2 = { 0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0 };
-                for (int offset = 0; offset < input_ios.Length - 4; offset++)
-                {
-                    input_ios.Position = offset;                                              // set position to advance byte by byte
-                    input_ios.Read(buffer_4, 0, 4);                                           // because we read 4 bytes at once
-
-                    if (ByteArrayCompare(buffer_4, pattern_nintendont_2))                     // if it matches
-                    {
-                        Console.WriteLine("* Nintendont patch 2...");
-                        input_ios.Seek(offset, SeekOrigin.Begin);                             // seek to offset
-                        input_ios.Write(patch_nintendont_2, 0, 20);                           // and then patch
-
-                        patchCount++;
-                    }
-                }
-
-                //nintendont 3
-                byte[] pattern1_nintendont_3 = { 0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00 };
-                byte[] pattern2_nintendont_3 = { 0x00, 0x00, 0x00, 0x02 };
-                byte[] patch_nintendont_3 = { 0x00, 0x00, 0x00, 0x03 };
-                for (int offset = 0; offset < input_ios.Length - 8; offset++)
-                {
-                    input_ios.Position = offset;                                              // set position to advance byte by byte
-                    input_ios.Read(buffer_8, 0, 8);                                           // because we read 8 bytes at once
-
-                    if (ByteArrayCompare(buffer_8, pattern1_nintendont_3))                    // if it matches
-                    {
-                        input_ios.Seek(offset+0x10, SeekOrigin.Begin);
-                        input_ios.Read(buffer_4, 0, 4);
-                        if (ByteArrayCompare(buffer_4, pattern2_nintendont_3))                // if it matches
+                        if (ByteArrayCompare(buffer_4, pattern_nintendont_1))                     // if it matches
                         {
-                            Console.WriteLine("* Nintendont patch 3...");
-                            input_ios.Seek(offset+0x10, SeekOrigin.Begin);                    // seek to offset
-                            input_ios.Write(patch_nintendont_3, 0, 4);                        // and then patch
+                            Console.WriteLine("* Nintendont patch 1...");
+                            input_ios.Seek(offset - 12, SeekOrigin.Begin);                        // seek to offset
+                            input_ios.Write(patch_nintendont_1, 0, 16);                           // and then patch
+                            patchCount++;
+                        }
+                    }
+
+                    //nintendont 2
+                    byte[] pattern_nintendont_2 = { 0x68, 0x4B, 0x2B, 0x06 };
+                    byte[] patch_nintendont_2 = { 0x49, 0x01, 0x47, 0x88, 0x46, 0xC0, 0xE0, 0x01, 0x12, 0xFF, 0xFE, 0x00, 0x22, 0x00, 0x23, 0x01, 0x46, 0xC0, 0x46, 0xC0 };
+                    for (int offset = 0; offset < input_ios.Length - 4; offset++)
+                    {
+                        input_ios.Position = offset;                                              // set position to advance byte by byte
+                        input_ios.Read(buffer_4, 0, 4);                                           // because we read 4 bytes at once
+
+                        if (ByteArrayCompare(buffer_4, pattern_nintendont_2))                     // if it matches
+                        {
+                            Console.WriteLine("* Nintendont patch 2...");
+                            input_ios.Seek(offset, SeekOrigin.Begin);                             // seek to offset
+                            input_ios.Write(patch_nintendont_2, 0, 20);                           // and then patch
 
                             patchCount++;
                         }
                     }
+
+                    //nintendont 3
+                    byte[] pattern1_nintendont_3 = { 0x0D, 0x80, 0x00, 0x00, 0x0D, 0x80, 0x00, 0x00 };
+                    byte[] pattern2_nintendont_3 = { 0x00, 0x00, 0x00, 0x02 };
+                    byte[] patch_nintendont_3 = { 0x00, 0x00, 0x00, 0x03 };
+                    for (int offset = 0; offset < input_ios.Length - 8; offset++)
+                    {
+                        input_ios.Position = offset;                                              // set position to advance byte by byte
+                        input_ios.Read(buffer_8, 0, 8);                                           // because we read 8 bytes at once
+
+                        if (ByteArrayCompare(buffer_8, pattern1_nintendont_3))                    // if it matches
+                        {
+                            input_ios.Seek(offset+0x10, SeekOrigin.Begin);
+                            input_ios.Read(buffer_4, 0, 4);
+                            if (ByteArrayCompare(buffer_4, pattern2_nintendont_3))                // if it matches
+                            {
+                                Console.WriteLine("* Nintendont patch 3...");
+                                input_ios.Seek(offset+0x10, SeekOrigin.Begin);                    // seek to offset
+                                input_ios.Write(patch_nintendont_3, 0, 4);                        // and then patch
+                                patchCount++;
+                            }
+                        }
+                    }
                 }
+                else 
+                {
+                    if (bootTitle)
+                    {
+                        Console.WriteLine("Writing config for booting the specified titleID...");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Writing config for booting disk...");
+                    }
+                    //write the titleID where HAI-Priiloader expects it to be
+                    byte[] pattern = {0x42, 0x23, 0xA9, 0x00, 0x9B, 0x42, 0x9A, 0xD1};
+                    bool success = false;
+                    for (int offset = 0; offset < input_ios.Length - 8; offset++)
+                    {
+                        input_ios.Position = offset;                                              // set position to advance byte by byte
+                        input_ios.Read(buffer_8, 0, 8);
+                        if (ByteArrayCompare(buffer_8, pattern))
+                        {
+                            input_ios.Seek(offset, SeekOrigin.Begin);
+                            input_ios.Write(titleID, 0, 8);
+                            success = true;
+                        }
+                    }
+                    if (!success)
+                    {
+                        Console.WriteLine("Error: Failed to write titleID. Try again with an unpatched fw.img");
+                        return;
+                    }
+                }
+                
 
                 if (patchCount == 0)
                     Console.WriteLine("Homebrew patching: Nothing to patch.");
@@ -1198,6 +1341,8 @@ namespace nfs2iso2nfs
 
                 Console.WriteLine();
             }
+            
+            
 
             // for homebrew: allow wiimote passthrough
             if (passthrough)

@@ -79,7 +79,7 @@ namespace nfs2iso2nfs
                     File.Delete("hif.nfs");
             }
         }
-        }
+        
 
 
         public static int checkArgs(string[] args)
